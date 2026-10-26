@@ -193,7 +193,8 @@ def build_metadata(
     # Add revocation endpoint if supported
     if revocation_options.enabled:  # pragma: no branch
         metadata.revocation_endpoint = AnyHttpUrl(str(issuer_url).rstrip("/") + REVOCATION_PATH)
-        metadata.revocation_endpoint_auth_methods_supported = ["client_secret_post", "client_secret_basic"]
+        # "none": a public client revokes with its client_id alone (RFC 7009 section 2.1).
+        metadata.revocation_endpoint_auth_methods_supported = ["client_secret_post", "client_secret_basic", "none"]
 
     return metadata
 

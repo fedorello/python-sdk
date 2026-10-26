@@ -324,6 +324,11 @@ class TestAuthEndpoints:
         assert metadata["token_endpoint"] == "https://auth.example.com/token"
         assert metadata["registration_endpoint"] == "https://auth.example.com/register"
         assert metadata["revocation_endpoint"] == "https://auth.example.com/revoke"
+        assert metadata["revocation_endpoint_auth_methods_supported"] == [
+            "client_secret_post",
+            "client_secret_basic",
+            "none",
+        ]
         assert metadata["response_types_supported"] == ["code"]
         assert metadata["code_challenge_methods_supported"] == ["S256"]
         assert metadata["token_endpoint_auth_methods_supported"] == ["client_secret_post", "client_secret_basic"]
@@ -893,6 +898,27 @@ class TestAuthEndpoints:
         )
         # per RFC, this should return 200 even if the token is invalid
         assert response.status_code == 200
+
+    @pytest.mark.anyio
+    async def test_public_client_revokes_without_client_secret(self, test_client: httpx2.AsyncClient):
+        """A public client (token_endpoint_auth_method "none") has no secret to send (RFC 7009 2.1)."""
+        registration = await test_client.post(
+            "/register",
+            json={
+                "redirect_uris": ["https://client.example.com/callback"],
+                "client_name": "Public Client",
+                "token_endpoint_auth_method": "none",
+            },
+        )
+        assert registration.status_code == 201, registration.content
+        public_client = registration.json()
+
+        response = await test_client.post(
+            "/revoke",
+            data={"client_id": public_client["client_id"], "token": "any_token"},
+        )
+
+        assert response.status_code == 200, response.content
 
     @pytest.mark.anyio
     async def test_revoke_with_malformed_token(
